@@ -1,16 +1,22 @@
 package com.dieam.reactnativepushnotification.modules;
 
 import android.os.Bundle;
-import androidx.annotation.NonNull;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.Iterator;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static com.dieam.reactnativepushnotification.modules.RNPushNotification.LOG_TAG;
 
@@ -36,11 +42,12 @@ public class RNPushNotificationAttributes {
     private static final String GROUP = "group";
     private static final String GROUP_SUMMARY = "groupSummary";
     private static final String MESSAGE_ID = "messageId";
+    private static final String USER_INTERACTION = "userInteraction";
     private static final String PLAY_SOUND = "playSound";
     private static final String VIBRATE = "vibrate";
     private static final String VIBRATION = "vibration";
-    private static final String ACTIONS = "actions";
     private static final String INVOKE_APP = "invokeApp";
+    private static final String ACTIONS = "actions";
     private static final String TAG = "tag";
     private static final String REPEAT_TYPE = "repeatType";
     private static final String REPEAT_TIME = "repeatTime";
@@ -54,6 +61,8 @@ public class RNPushNotificationAttributes {
     private static final String ALLOW_WHILE_IDLE = "allowWhileIdle";
     private static final String IGNORE_IN_FOREGROUND = "ignoreInForeground";
     private static final String USER_INFO = "userInfo";
+    private static final String ACTION_ID = "id";
+    private static final String ACTION_TEXT = "text";
 
     private final String id;
     private final String message;
@@ -74,6 +83,7 @@ public class RNPushNotificationAttributes {
     private final String sound;
     private final String color;
     private final String group;
+    private final boolean userInteraction;
     private final boolean groupSummary;
     private final String messageId;
     private final boolean playSound;
@@ -115,12 +125,13 @@ public class RNPushNotificationAttributes {
         sound = bundle.getString(SOUND);
         color = bundle.getString(COLOR);
         group = bundle.getString(GROUP);
+        userInteraction = bundle.getBoolean(USER_INTERACTION);
         groupSummary = bundle.getBoolean(GROUP_SUMMARY);
         messageId = bundle.getString(MESSAGE_ID);
         playSound = bundle.getBoolean(PLAY_SOUND);
         vibrate = bundle.getBoolean(VIBRATE);
         vibration = bundle.getDouble(VIBRATION);
-        actions = bundle.getString(ACTIONS);
+        actions = bundle.getSerializable(ACTIONS);
         invokeApp = bundle.getBoolean(INVOKE_APP);
         tag = bundle.getString(TAG);
         repeatType = bundle.getString(REPEAT_TYPE);
@@ -163,7 +174,8 @@ public class RNPushNotificationAttributes {
             playSound = jsonObject.has(PLAY_SOUND) ? jsonObject.getBoolean(PLAY_SOUND) : true;
             vibrate = jsonObject.has(VIBRATE) ? jsonObject.getBoolean(VIBRATE) : true;
             vibration = jsonObject.has(VIBRATION) ? jsonObject.getDouble(VIBRATION) : 1000;
-            actions = jsonObject.has(ACTIONS) ? jsonObject.getString(ACTIONS) : null;
+            actions = jsonObject.has(ACTIONS) ? decodeActions(jsonObject) : null;
+            userInteraction = jsonObject.has(USER_INTERACTION) ? jsonObject.getBoolean(USER_INTERACTION) : false;
             invokeApp = jsonObject.has(INVOKE_APP) ? jsonObject.getBoolean(INVOKE_APP) : true;
             tag = jsonObject.has(TAG) ? jsonObject.getString(TAG) : null;
             repeatType = jsonObject.has(REPEAT_TYPE) ? jsonObject.getString(REPEAT_TYPE) : null;
@@ -183,15 +195,85 @@ public class RNPushNotificationAttributes {
         }
     }
 
+    private Serializable decodeActions(JSONObject jsonObject) {
+        try {
+            Object actionsRaw = jsonObject.get(ACTIONS);
+            if (actionsRaw instanceof String) {
+              return (String) actionsRaw;
+            }
+            JSONArray actionsArray = (JSONArray) actionsRaw;
+            ArrayList<Map<String, String>> result = new ArrayList<>(actionsArray.length());
+            for (int i = 0; i < actionsArray.length(); i++) {
+                JSONObject actionRaw = actionsArray.getJSONObject(i);
+                Map<String, String> action = new HashMap<>(2);
+                action.put(ACTION_ID, actionRaw.getString(ACTION_ID));
+                action.put(ACTION_TEXT, actionRaw.getString(ACTION_TEXT));
+                result.add(action);
+            }
+            return result;
+        } catch (JSONException e) {
+            throw new IllegalStateException("Exception while decoding RNPushNotificationAttributes.actions from JSON", e);
+        }
+    }
+
     @NonNull
     public static RNPushNotificationAttributes fromJson(String notificationAttributesJson) throws JSONException {
         JSONObject jsonObject = new JSONObject(notificationAttributesJson);
-        
         return new RNPushNotificationAttributes(jsonObject);
+    }
+
+    /**
+     * User to find notifications:
+     * <p>
+     * https://github.com/facebook/react-native/blob/master/Libraries/PushNotificationIOS/RCTPushNotificationManager.m#L294
+     *
+     * @param userInfo map of fields to match
+     * @return true all fields in userInfo object match, false otherwise
+     */
+    public boolean matches(ReadableMap userInfo) {
+        Bundle bundle = toBundle();
+
+        ReadableMapKeySetIterator iterator = userInfo.keySetIterator();
+        while (iterator.hasNextKey()) {
+            String key = iterator.nextKey();
+
+            if (!bundle.containsKey(key))
+                return false;
+
+            switch (userInfo.getType(key)) {
+                case Null: {
+                    if (bundle.get(key) != null)
+                        return false;
+                    break;
+                }
+                case Boolean: {
+                    if (userInfo.getBoolean(key) != bundle.getBoolean(key))
+                        return false;
+                    break;
+                }
+                case Number: {
+                    if ((userInfo.getDouble(key) != bundle.getDouble(key)) && (userInfo.getInt(key) != bundle.getInt(key)))
+                        return false;
+                    break;
+                }
+                case String: {
+                    if (!userInfo.getString(key).equals(bundle.getString(key)))
+                        return false;
+                    break;
+                }
+                case Map:
+                    return false;//there are no maps in the bundle
+                case Array:
+                    return false;//there are no arrays in the bundle
+            }
+        }
+
+        return true;
     }
 
     public Bundle toBundle() {
         Bundle bundle = new Bundle();
+
         bundle.putString(ID, id);
         bundle.putString(MESSAGE, message);
         bundle.putDouble(FIRE_DATE, fireDate);
@@ -231,6 +313,7 @@ public class RNPushNotificationAttributes {
         bundle.putBoolean(ALLOW_WHILE_IDLE, allowWhileIdle);
         bundle.putBoolean(IGNORE_IN_FOREGROUND, ignoreInForeground);
         bundle.putString(USER_INFO, userInfo);
+        bundle.putBoolean(USER_INTERACTION, userInteraction);
         return bundle;
     }
 
@@ -276,6 +359,7 @@ public class RNPushNotificationAttributes {
             jsonObject.put(ALLOW_WHILE_IDLE, allowWhileIdle);
             jsonObject.put(IGNORE_IN_FOREGROUND, ignoreInForeground);
             jsonObject.put(USER_INFO, userInfo);
+            jsonObject.put(USER_INTERACTION, userInteraction);
         } catch (JSONException e) {
             Log.e(LOG_TAG, "Exception while converting RNPushNotificationAttributes to " +
                     "JSON. Returning an empty object", e);
@@ -287,7 +371,7 @@ public class RNPushNotificationAttributes {
     @Override
     // For debugging
     public String toString() {
-        return "RNPushNotificationAttributes{" +
+        r  return "RNPushNotificationAttributes{" +
                 "id='" + id + '\'' +
                 ", message='" + message + '\'' +
                 ", fireDate=" + fireDate +
@@ -307,6 +391,7 @@ public class RNPushNotificationAttributes {
                 ", sound='" + sound + '\'' +
                 ", color='" + color + '\'' +
                 ", group='" + group + '\'' +
+                ", userInteraction=" + userInteraction +
                 ", groupSummary='" + groupSummary + '\'' +
                 ", messageId='" + messageId + '\'' +
                 ", playSound=" + playSound +
@@ -332,8 +417,7 @@ public class RNPushNotificationAttributes {
 
     public String getId() {
         return id;
-    }
-
+    }    
     public String getSound() {
         return sound;
     }
@@ -358,7 +442,9 @@ public class RNPushNotificationAttributes {
         return repeatType;
     }
 
+
     public double getFireDate() {
         return fireDate;
     }
+
 }

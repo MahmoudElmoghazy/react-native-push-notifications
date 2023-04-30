@@ -39,6 +39,7 @@ import com.facebook.react.bridge.WritableMap;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -498,35 +499,28 @@ public class RNPushNotificationHelper {
             notification.setChannelId(channel_id);
             notification.setContentIntent(pendingIntent);
 
-            JSONArray actionsArray = null;
-            try {
-                actionsArray = bundle.getString("actions") != null ? new JSONArray(bundle.getString("actions")) : null;
-            } catch (JSONException e) {
-                Log.e(LOG_TAG, "Exception while converting actions to JSON object.", e);
-            }
-
-            if (actionsArray != null) {
+            Serializable actionsRaw = bundle.getSerializable("actions");
+            if (actionsRaw instanceof List) {
                 // No icon for now. The icon value of 0 shows no icon.
                 int icon = 0;
 
-                // Add button for each actions.
-                for (int i = 0; i < actionsArray.length(); i++) {
-                    String action;
-                    try {
-                        action = actionsArray.getString(i);
-                    } catch (JSONException e) {
-                        Log.e(LOG_TAG, "Exception while getting action from actionsArray.", e);
+                List<Bundle> actions = (List<Bundle>) actionsRaw;
+                for (Bundle action : actions) {
+                    String id = action.getString("id");
+                    String text = action.getString("text");
+                    if (id == null || text == null || id.isEmpty() || text.isEmpty()) {
+                        Log.e(LOG_TAG, "id and text must be defined. Action will not be added");
                         continue;
                     }
 
 
                     Intent actionIntent = new Intent(context, RNPushNotificationActions.class);
-                    actionIntent.setAction(packageName + ".ACTION_" + i);
+                    actionIntent.setAction(packageName + "." + id);
 
                     actionIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
 
                     // Add "action" for later identifying which button gets pressed.
-                    bundle.putString("action", action);
+                    bundle.putString("action", id);
                     actionIntent.putExtra("notification", bundle);
                     actionIntent.setPackage(packageName);
                     if (messageId != null) {
@@ -561,7 +555,7 @@ public class RNPushNotificationHelper {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                           notification.addAction(new NotificationCompat.Action.Builder(icon, action, pendingActionIntent).build());
                         } else {
-                          notification.addAction(icon, action, pendingActionIntent);
+                          notification.addAction(icon, text, pendingActionIntent);
                         }
                     }
                 }
