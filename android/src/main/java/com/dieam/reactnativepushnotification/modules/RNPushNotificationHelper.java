@@ -508,6 +508,8 @@ public class RNPushNotificationHelper {
                 for (Bundle action : actions) {
                     String id = action.getString("id");
                     String text = action.getString("text");
+                    Log.e(LOG_TAG, text);
+                     Log.e(LOG_TAG, id);
                     if (id == null || text == null || id.isEmpty() || text.isEmpty()) {
                         Log.e(LOG_TAG, "id and text must be defined. Action will not be added");
                         continue;
