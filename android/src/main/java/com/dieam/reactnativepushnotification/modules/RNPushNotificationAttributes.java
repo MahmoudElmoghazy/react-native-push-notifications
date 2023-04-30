@@ -371,7 +371,7 @@ public class RNPushNotificationAttributes {
     @Override
     // For debugging
     public String toString() {
-        r  return "RNPushNotificationAttributes{" +
+         return "RNPushNotificationAttributes{" +
                 "id='" + id + '\'' +
                 ", message='" + message + '\'' +
                 ", fireDate=" + fireDate +
@@ -391,7 +391,7 @@ public class RNPushNotificationAttributes {
                 ", sound='" + sound + '\'' +
                 ", color='" + color + '\'' +
                 ", group='" + group + '\'' +
-                ", userInteraction=" + userInteraction +
+                ", userInteraction=" + userInteraction + '\'' +
                 ", groupSummary='" + groupSummary + '\'' +
                 ", messageId='" + messageId + '\'' +
                 ", playSound=" + playSound +
