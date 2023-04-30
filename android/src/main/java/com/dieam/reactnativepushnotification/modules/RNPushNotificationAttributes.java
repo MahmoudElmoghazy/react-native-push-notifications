@@ -298,7 +298,7 @@ public class RNPushNotificationAttributes {
         bundle.putBoolean(PLAY_SOUND, playSound);
         bundle.putBoolean(VIBRATE, vibrate);
         bundle.putDouble(VIBRATION, vibration);
-        bundle.putString(ACTIONS, actions);
+        bundle.putSerializable(ACTIONS, actions);
         bundle.putBoolean(INVOKE_APP, invokeApp);
         bundle.putString(TAG, tag);
         bundle.putString(REPEAT_TYPE, repeatType);
