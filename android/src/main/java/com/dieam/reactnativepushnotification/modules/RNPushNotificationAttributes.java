@@ -89,7 +89,7 @@ public class RNPushNotificationAttributes {
     private final boolean playSound;
     private final boolean vibrate;
     private final double vibration;
-    private final String actions;
+    private final Serializable actions;
     private final boolean invokeApp;
     private final String tag;
     private final String repeatType;
