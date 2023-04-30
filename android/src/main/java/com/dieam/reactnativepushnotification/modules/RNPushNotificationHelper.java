@@ -553,7 +553,7 @@ public class RNPushNotificationHelper {
                     else{
                         // Add "action" for later identifying which button gets pressed
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                          notification.addAction(new NotificationCompat.Action.Builder(icon, action, pendingActionIntent).build());
+                          notification.addAction(new NotificationCompat.Action.Builder(icon, text, pendingActionIntent).build());
                         } else {
                           notification.addAction(icon, text, pendingActionIntent);
                         }
